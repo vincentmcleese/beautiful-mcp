@@ -21,6 +21,7 @@ STYTCH_AUTHORIZATION_SERVER = os.getenv(
 
 # OAuth endpoints
 STYTCH_AUTHENTICATE_URL = "https://test.stytch.com/v1/oauth/authenticate"
+STYTCH_SESSION_AUTH_URL = "https://test.stytch.com/v1/sessions/authenticate"
 STYTCH_JWKS_URL = f"https://test.stytch.com/v1/sessions/jwks/{STYTCH_PROJECT_ID}"
 
 
@@ -214,35 +215,163 @@ async def verify_stytch_token(token: str) -> Dict[str, Any]:
         oauth_logger.info("=" * 80)
 
 
+async def verify_stytch_session_token(session_token: str) -> Dict[str, Any]:
+    """
+    Verify session token from Stytch OAuth flow and get user data.
+
+    This is used when the frontend completes OAuth and gets a session token.
+
+    Args:
+        session_token: Session token from Stytch OAuth flow
+
+    Returns:
+        dict: User data including provider_values with Twitter profile
+
+    Raises:
+        Exception: If session authentication fails
+    """
+    oauth_logger.info("=" * 80)
+    oauth_logger.info("🔐 Starting session token verification")
+    oauth_logger.info(f"Token (first 20 chars): {session_token[:20]}...")
+    oauth_logger.info(f"Token length: {len(session_token)}")
+
+    if not STYTCH_PROJECT_ID or not STYTCH_SECRET:
+        oauth_logger.error("❌ STYTCH_PROJECT_ID or STYTCH_SECRET not configured")
+        raise ValueError("Stytch credentials not configured")
+
+    try:
+        oauth_logger.debug(f"Session auth URL: {STYTCH_SESSION_AUTH_URL}")
+        oauth_logger.debug("Using Basic authentication with project credentials")
+
+        # Create Basic Auth header (project_id:secret)
+        credentials = f"{STYTCH_PROJECT_ID}:{STYTCH_SECRET}"
+        b64_credentials = base64.b64encode(credentials.encode()).decode()
+        auth_header = f"Basic {b64_credentials}"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                STYTCH_SESSION_AUTH_URL,
+                json={"session_token": session_token},
+                headers={
+                    "Authorization": auth_header,
+                    "Content-Type": "application/json"
+                }
+            )
+
+        oauth_logger.info(f"📡 Stytch response status: {response.status_code}")
+        oauth_logger.debug(f"Stytch response headers: {dict(response.headers)}")
+
+        if response.status_code == 200:
+            data = response.json()
+            oauth_logger.debug(f"Full Stytch response: {json.dumps(data, indent=2)}")
+
+            # Extract user info
+            user = data.get('user', {})
+            user_id = user.get('user_id', 'UNKNOWN')
+            oauth_logger.info(f"✅ Session valid for user: {user_id}")
+
+            # Extract provider values (Twitter profile)
+            provider_values = user.get('provider_values', {})
+            oauth_logger.debug(f"Provider values keys: {list(provider_values.keys())}")
+
+            # Twitter data structure
+            if 'twitter' in provider_values:
+                twitter_profile = provider_values['twitter']
+                oauth_logger.info(f"🐦 Twitter data found")
+                oauth_logger.info(f"🐦 Twitter handle: @{twitter_profile.get('screen_name', 'UNKNOWN')}")
+                oauth_logger.info(f"🐦 Twitter name: {twitter_profile.get('name', 'UNKNOWN')}")
+                oauth_logger.info(f"🐦 Twitter ID: {twitter_profile.get('id', 'UNKNOWN')}")
+                avatar_url = twitter_profile.get('profile_image_url', '')
+                if avatar_url:
+                    oauth_logger.info(f"🐦 Twitter avatar: {avatar_url[:60]}...")
+            else:
+                oauth_logger.warning(f"⚠️ No Twitter data in provider_values. Available: {list(provider_values.keys())}")
+
+            return data
+
+        else:
+            oauth_logger.error(f"❌ Stytch session authentication failed: {response.status_code}")
+            oauth_logger.error(f"Response body: {response.text}")
+            error_logger.error(f"Stytch session auth failed: {response.status_code} - {response.text}")
+            raise Exception(f"Stytch session authentication failed: {response.status_code}")
+
+    except httpx.RequestError as e:
+        oauth_logger.error(f"❌ Network error calling Stytch: {str(e)}")
+        error_logger.exception("Stytch network error", exc_info=e)
+        raise Exception(f"Network error contacting Stytch: {str(e)}")
+
+    except Exception as e:
+        oauth_logger.error(f"❌ Unexpected error in session token verification: {str(e)}")
+        error_logger.exception("Session token verification error", exc_info=e)
+        raise
+
+    finally:
+        oauth_logger.info("=" * 80)
+
+
 def extract_twitter_profile(stytch_data: Dict[str, Any]) -> Optional[Dict[str, str]]:
     """
     Extract Twitter profile data from Stytch response.
+
+    Handles two response formats:
+    1. /v1/oauth/authenticate - has provider_values.twitter with full profile
+    2. /v1/sessions/authenticate - has user.providers[] with limited profile
 
     Args:
         stytch_data: Response from Stytch authenticate endpoint
 
     Returns:
-        dict: Twitter profile with keys: user_id, twitter_id, handle, name, avatar_url
+        dict: Twitter profile with keys: stytch_user_id, twitter_id, twitter_handle, display_name, avatar_url
         None: If no Twitter data found
     """
     try:
+        user = stytch_data.get('user', {})
+        stytch_user_id = user.get('user_id')
+
+        # Try format 1: provider_values.twitter (from /v1/oauth/authenticate)
         provider_values = stytch_data.get('provider_values', {})
         twitter = provider_values.get('twitter', {})
 
-        if not twitter:
-            oauth_logger.warning("No Twitter data in Stytch response")
-            return None
+        if twitter:
+            oauth_logger.info("🐦 Found Twitter data in provider_values (OAuth authenticate response)")
+            profile = {
+                'stytch_user_id': stytch_user_id,
+                'twitter_id': twitter.get('id'),
+                'twitter_handle': twitter.get('screen_name'),
+                'display_name': twitter.get('name'),
+                'avatar_url': twitter.get('profile_image_url', '').replace('_normal', '_400x400'),  # Get higher res
+            }
+            oauth_logger.debug(f"Extracted Twitter profile: {profile}")
+            return profile
 
-        profile = {
-            'stytch_user_id': stytch_data.get('user', {}).get('user_id'),
-            'twitter_id': twitter.get('id'),
-            'twitter_handle': twitter.get('screen_name'),
-            'display_name': twitter.get('name'),
-            'avatar_url': twitter.get('profile_image_url', '').replace('_normal', '_400x400'),  # Get higher res
-        }
+        # Try format 2: user.providers[] (from /v1/sessions/authenticate)
+        providers = user.get('providers', [])
+        twitter_provider = next((p for p in providers if p.get('provider_type') == 'Twitter'), None)
 
-        oauth_logger.debug(f"Extracted Twitter profile: {profile}")
-        return profile
+        if twitter_provider:
+            oauth_logger.info("🐦 Found Twitter data in user.providers (session authenticate response)")
+
+            # Get display name from user.name
+            name = user.get('name', {})
+            display_name = name.get('first_name', '') or 'Unknown'
+
+            # Extract Twitter handle from provider_subject (Twitter user ID)
+            # Note: We only have the Twitter user ID, not the @handle
+            # We'll use the display name as the handle for now
+            twitter_id = twitter_provider.get('provider_subject')
+
+            profile = {
+                'stytch_user_id': stytch_user_id,
+                'twitter_id': twitter_id,
+                'twitter_handle': display_name,  # Using display name since we don't have @handle
+                'display_name': display_name,
+                'avatar_url': twitter_provider.get('profile_picture_url', '').replace('_normal', '_400x400'),
+            }
+            oauth_logger.debug(f"Extracted Twitter profile: {profile}")
+            return profile
+
+        oauth_logger.warning("No Twitter data in Stytch response (checked both formats)")
+        return None
 
     except Exception as e:
         oauth_logger.error(f"Error extracting Twitter profile: {str(e)}")
@@ -250,4 +379,4 @@ def extract_twitter_profile(stytch_data: Dict[str, Any]) -> Optional[Dict[str, s
         return None
 
 
-__all__ = ['verify_stytch_token', 'verify_jwt_token', 'extract_twitter_profile']
+__all__ = ['verify_stytch_token', 'verify_jwt_token', 'verify_stytch_session_token', 'extract_twitter_profile']

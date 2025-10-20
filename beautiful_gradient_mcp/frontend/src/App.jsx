@@ -27,8 +27,31 @@ function LoginFlow() {
       stytchClient.oauth.authenticate(stytchToken, {
         session_duration_minutes: 60,
       })
-      .then((response) => {
+      .then(async (response) => {
         console.log('✅ Stytch session created:', response);
+
+        // Save user profile to backend database
+        console.log('🔐 Calling backend to save profile...');
+        try {
+          const saveResponse = await fetch(`${window.location.origin}/api/save-profile`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              session_token: response.session_token
+            })
+          });
+
+          const saveData = await saveResponse.json();
+          if (saveData.success) {
+            console.log('✅ Profile saved successfully:', saveData.profile);
+          } else {
+            console.error('❌ Profile save failed:', saveData.message);
+          }
+        } catch (error) {
+          console.error('❌ Error calling save-profile endpoint:', error);
+        }
 
         // Restore ChatGPT OAuth params from sessionStorage
         const saved = sessionStorage.getItem('chatgpt_oauth_params');
