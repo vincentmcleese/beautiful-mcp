@@ -51,4 +51,28 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
+venv/
+env/
+*.db
+*.sqlite
+*.sqlite3
+
+# Sensitive configuration files
+docker-compose.override.yml
+*.local.json
+settings.local.js
+config.local.js
+
+# Temporary and backup files
+*.tmp
+*.temp
+*.bak
+*.backup
+*~.nib
+*.swp
+*.swo
+
+# Package manager lock files (optional - uncomment if you want to ignore them)
+# package-lock.json
+# yarn.lock
 
