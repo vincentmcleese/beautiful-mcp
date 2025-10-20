@@ -43,8 +43,8 @@ def setup_logger(name: str, log_file: str, level=logging.DEBUG) -> logging.Logge
     # Remove existing handlers
     logger.handlers = []
 
-    # File handler (no colors)
-    file_handler = logging.FileHandler(LOGS_DIR / log_file)
+    # File handler (no colors, UTF-8 encoding)
+    file_handler = logging.FileHandler(LOGS_DIR / log_file, encoding='utf-8')
     file_handler.setLevel(level)
     file_formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - [%(funcName)s:%(lineno)d] - %(message)s',
@@ -53,7 +53,7 @@ def setup_logger(name: str, log_file: str, level=logging.DEBUG) -> logging.Logge
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
 
-    # Console handler (with colors)
+    # Console handler (with colors, UTF-8 encoding)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
     console_formatter = ColoredFormatter(
@@ -61,6 +61,9 @@ def setup_logger(name: str, log_file: str, level=logging.DEBUG) -> logging.Logge
         datefmt='%H:%M:%S'
     )
     console_handler.setFormatter(console_formatter)
+    # Set encoding to UTF-8 for console output
+    if hasattr(console_handler.stream, 'reconfigure'):
+        console_handler.stream.reconfigure(encoding='utf-8')
     logger.addHandler(console_handler)
 
     return logger

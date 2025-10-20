@@ -1,5 +1,31 @@
-# Environment variables
+# Environment variables and sensitive data
 .env
+.env.*
+.env.local
+.env.development
+.env.production
+.env.test
+.env.*.local
+.env.*.example
+.env.backup
+.env.dist
+.env.template
+!.env.example
+
+# API keys and secrets
+config.json
+secrets.json
+credentials.json
+.secrets
+*.key
+*.pem
+*.cert
+
+# Database files (contain sensitive data)
+*.db
+*.sqlite
+*.sqlite3
+gradient_mcp.db
 
 # Python
 __pycache__/

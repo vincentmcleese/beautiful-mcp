@@ -5,3 +5,5 @@ httpx
 python-dotenv
 sqlalchemy
 psycopg2-binary
+PyJWT>=2.8.0
+cryptography>=3.4.8

@@ -12,6 +12,7 @@ function LoginFlow() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [oauthParams, setOauthParams] = useState(null);
 
+  console.log('ENV TOKEN:', import.meta.env.VITE_STYTCH_PUBLIC_TOKEN);
   useEffect(() => {
     // On mount, check for OAuth params in URL
     const params = new URLSearchParams(window.location.search);

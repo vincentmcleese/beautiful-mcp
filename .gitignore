@@ -17,11 +17,29 @@ yarn-error.log
 *.tsbuildinfo
 .eslintcache
 
-# Environment files
+# Environment files and sensitive data
 .env
+.env.*
 .env.local
+.env.development
+.env.production
+.env.test
 .env.*.local
+.env.*.example
+.env.backup
+.env.dist
+.env.template
 !.env.example
+.env.example.*
+
+# API keys and secrets
+config.json
+secrets.json
+credentials.json
+.secrets
+*.key
+*.pem
+*.cert
 
 # Editor and OS files
 .DS_Store
