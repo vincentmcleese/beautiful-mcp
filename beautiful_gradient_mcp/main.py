@@ -540,8 +540,13 @@ app = mcp_server.streamable_http_app()
 # Serve built React app
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "frontend", "dist")
 
-# Mount static assets
-app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="assets")
+# Mount static assets only if directory exists (Railway build may not have run yet)
+assets_dir = os.path.join(FRONTEND_DIR, "assets")
+if os.path.exists(assets_dir):
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+    mcp_logger.info(f"✅ Mounted static assets from {assets_dir}")
+else:
+    mcp_logger.warning(f"⚠️ Static assets directory not found: {assets_dir}")
 
 # API endpoint to save user profile after frontend OAuth
 @app.route("/api/save-profile", methods=["POST"])
