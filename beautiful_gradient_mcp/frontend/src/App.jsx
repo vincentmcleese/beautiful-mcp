@@ -154,13 +154,13 @@ function LoginFlow() {
   // If no session, show login button
   return (
     <div className="login-prompt">
-      <p>First, sign in with Twitter to continue</p>
+      <p>First, sign in with X to continue</p>
       <button
         onClick={handleTwitterLogin}
         disabled={isLoggingIn}
         className="twitter-button"
       >
-        {isLoggingIn ? 'Redirecting...' : 'Sign in with Twitter'}
+        {isLoggingIn ? 'Redirecting...' : 'Sign in with X'}
       </button>
     </div>
   );
@@ -171,7 +171,7 @@ function App() {
     <StytchProvider stytch={stytch}>
       <div className="app-container">
         <div className="login-card">
-          <h1>🌈 Beautiful Gradient MCP</h1>
+          <h1>🌈 Gradient Tweet MCP</h1>
           <p className="subtitle">Authorize ChatGPT to create gradient tweets</p>
           <LoginFlow />
         </div>

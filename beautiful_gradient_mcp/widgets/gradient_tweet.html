@@ -237,7 +237,7 @@
       <div class="color-bar">
         <label>Color 1 <input id="color1" type="color" value="#FF6B6B"></label>
         <label>Color 2 <input id="color2" type="color" value="#FFE66D"></label>
-        <button id="random" class="btn">Random</button>
+        <button id="random" class="btn">⏮️ Random ⏭️</button>
       </div>
       <div id="gradThumbs" class="grad-thumbs"></div>
     </div>
@@ -432,92 +432,19 @@
               "
               alt="Tweet gradient image"
             >
-            <div style="
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              gap: 12px;
+            <p style="
+              color: #fff;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              font-size: 16px;
               margin-top: 20px;
+              text-align: center;
             ">
-              <p style="
-                color: #fff;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                font-size: 16px;
-                margin: 0;
-                text-align: center;
-              ">
-                Right-click to copy or save the image!
-              </p>
-              <button
-                id="tweetBtn"
-                style="
-                  background: #1d9bf0;
-                  color: #fff;
-                  border: none;
-                  border-radius: 10px;
-                  padding: 10px 20px;
-                  font-size: 14px;
-                  font-weight: 600;
-                  cursor: pointer;
-                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                  transition: background 150ms ease;
-                "
-                onmouseover="this.style.background='#1a8cd8'"
-                onmouseout="this.style.background='#1d9bf0'"
-              >
-                Tweet This
-              </button>
-            </div>
+              Right-click to copy or save the image!
+            </p>
           </div>
         `;
 
-        // Add event listener to the Tweet button
-        const tweetBtn = document.getElementById('tweetBtn');
-        if (tweetBtn) {
-          tweetBtn.addEventListener('click', async () => {
-            try {
-              tweetBtn.textContent = 'Uploading...';
-              tweetBtn.disabled = true;
-
-              // Upload to Cloudinary using absolute server URL
-              const uploadUrl = SERVER_URL + '/api/upload-image';
-              console.log('📤 Uploading to:', uploadUrl);
-
-              const res = await fetch(uploadUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: dataUrl })
-              });
-
-              const result = await res.json();
-
-              if (result && result.url) {
-                // Create share URL with Twitter Card meta tags (for image preview)
-                const shareUrl = SERVER_URL + '/share/' + result.public_id;
-                const shareText = tweetContent ? tweetContent + ' ' + shareUrl : shareUrl;
-                const encodedText = encodeURIComponent(shareText);
-                const twitterUrl = 'https://twitter.com/intent/tweet?text=' + encodedText;
-
-                console.log('🐦 Opening Twitter with share URL:', shareUrl);
-                window.open(twitterUrl, '_blank', 'noopener,noreferrer');
-
-                tweetBtn.textContent = 'Tweet This';
-                tweetBtn.disabled = false;
-              } else {
-                throw new Error(result.message || 'Upload failed');
-              }
-            } catch (e) {
-              console.error('Tweet failed:', e);
-              tweetBtn.textContent = 'Upload Failed';
-              setTimeout(() => {
-                tweetBtn.textContent = 'Tweet This';
-                tweetBtn.disabled = false;
-              }, 2000);
-            }
-          });
-        }
-
-        console.log('✅ Image rendered in widget - user can now copy/save/tweet');
+        console.log('✅ Image rendered in widget - user can now copy/save');
       } catch(e) {
         console.error('Image generation failed', e);
       }

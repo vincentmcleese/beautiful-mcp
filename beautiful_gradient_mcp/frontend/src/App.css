@@ -21,6 +21,7 @@ body {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   max-width: 500px;
   width: 100%;
+  text-align: center;
 }
 
 h1 {
@@ -45,7 +46,7 @@ h1 {
 }
 
 .twitter-button {
-  background: #1DA1F2;
+  background: #000;
   color: white;
   border: none;
   padding: 0.75rem 2rem;
@@ -59,7 +60,7 @@ h1 {
 }
 
 .twitter-button:hover:not(:disabled) {
-  background: #1a91da;
+  background: #333;
 }
 
 .twitter-button:disabled {
