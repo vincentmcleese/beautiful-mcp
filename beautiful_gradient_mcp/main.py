@@ -5,6 +5,7 @@ import json
 import uuid
 from typing import Any, Dict, List, Optional
 from datetime import datetime
+from pathlib import Path
 
 import mcp.types as types
 from mcp.server.fastmcp import FastMCP
@@ -43,6 +44,13 @@ MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", f"{DEFAULT_PROTOCOL}://{DEFAULT_HOS
 OAUTH_AUTHORIZE_URL = "https://test.stytch.com/v1/public/oauth/authorize"
 OAUTH_TOKEN_URL = "https://test.stytch.com/v1/public/oauth/token"
 OAUTH_REGISTER_URL = "https://test.stytch.com/v1/public/oauth/register"
+
+# Widget configuration for Apps SDK
+MIME_TYPE = "text/html+skybridge"
+WIDGET_TEMPLATE_URI = "ui://widget/gradient-tweet.html"
+WIDGET_TITLE = "Gradient Tweet"
+WIDGET_INVOKING = "Creating gradient tweet"
+WIDGET_INVOKED = "Created gradient tweet"
 
 
 # Custom AccessToken with additional JWT fields
@@ -118,6 +126,42 @@ except Exception as e:
     startup_logger.error(f"Failed to initialize database: {str(e)}")
     # Continue anyway for testing
 
+
+# Helper functions for widget resources
+def _load_widget_html() -> str:
+    """Load the gradient tweet widget HTML from file."""
+    widget_path = Path(__file__).parent / "widgets" / "gradient_tweet.html"
+    try:
+        return widget_path.read_text(encoding="utf-8")
+    except Exception as e:
+        mcp_logger.error(f"Failed to load widget HTML: {e}")
+        return "<html><body><p>Widget not available</p></body></html>"
+
+
+def _widget_metadata() -> Dict[str, Any]:
+    """Return metadata for widget integration."""
+    return {
+        "openai/outputTemplate": WIDGET_TEMPLATE_URI,
+        "openai/toolInvocation/invoking": WIDGET_INVOKING,
+        "openai/toolInvocation/invoked": WIDGET_INVOKED,
+        "openai/widgetAccessible": True,
+        "openai/resultCanProduceWidget": True,
+    }
+
+
+def _embedded_widget_resource() -> types.EmbeddedResource:
+    """Create an embedded widget resource with proper formatting."""
+    return types.EmbeddedResource(
+        type="resource",
+        resource=types.TextResourceContents(
+            uri=WIDGET_TEMPLATE_URI,
+            mimeType=MIME_TYPE,
+            text=_load_widget_html(),
+            title=WIDGET_TITLE,
+        ),
+    )
+
+
 # Tool input schema
 TOOL_INPUT_SCHEMA = {
     "type": "object",
@@ -177,10 +221,7 @@ async def _list_tools() -> List[types.Tool]:
                     "scopes": ["openid", "profile"]
                 }
             ],
-            _meta={
-                "openai/widgetAccessible": True,
-                "openai/resultCanProduceWidget": True
-            },
+            _meta=_widget_metadata(),
             annotations={
                 "destructiveHint": False,
                 "openWorldHint": False,
@@ -191,6 +232,72 @@ async def _list_tools() -> List[types.Tool]:
 
     mcp_logger.info(f"✅ Returned {len(tools)} tools")
     return tools
+
+
+@mcp_server._mcp_server.list_resources()
+async def _list_resources() -> List[types.Resource]:
+    """List available widget resources."""
+    mcp_logger.info("📋 Resources list requested")
+
+    resources = [
+        types.Resource(
+            name=WIDGET_TITLE,
+            title=WIDGET_TITLE,
+            uri=WIDGET_TEMPLATE_URI,
+            description=f"{WIDGET_TITLE} widget markup",
+            mimeType=MIME_TYPE,
+            _meta=_widget_metadata(),
+        )
+    ]
+
+    mcp_logger.info(f"✅ Returned {len(resources)} resources")
+    return resources
+
+
+@mcp_server._mcp_server.list_resource_templates()
+async def _list_resource_templates() -> List[types.ResourceTemplate]:
+    """List available resource templates."""
+    mcp_logger.info("📋 Resource templates list requested")
+
+    templates = [
+        types.ResourceTemplate(
+            name=WIDGET_TITLE,
+            title=WIDGET_TITLE,
+            uriTemplate=WIDGET_TEMPLATE_URI,
+            description=f"{WIDGET_TITLE} widget markup",
+            mimeType=MIME_TYPE,
+            _meta=_widget_metadata(),
+        )
+    ]
+
+    mcp_logger.info(f"✅ Returned {len(templates)} resource templates")
+    return templates
+
+
+async def _handle_read_resource(req: types.ReadResourceRequest) -> types.ServerResult:
+    """Handle resource read requests for widget HTML."""
+    mcp_logger.info(f"📖 Resource read request: {req.params.uri}")
+
+    if str(req.params.uri) != WIDGET_TEMPLATE_URI:
+        mcp_logger.error(f"❌ Unknown resource: {req.params.uri}")
+        return types.ServerResult(
+            types.ReadResourceResult(
+                contents=[],
+                _meta={"error": f"Unknown resource: {req.params.uri}"},
+            )
+        )
+
+    contents = [
+        types.TextResourceContents(
+            uri=WIDGET_TEMPLATE_URI,
+            mimeType=MIME_TYPE,
+            text=_load_widget_html(),
+            _meta=_widget_metadata(),
+        )
+    ]
+
+    mcp_logger.info(f"✅ Returned widget resource")
+    return types.ServerResult(types.ReadResourceResult(contents=contents))
 
 
 async def _call_tool(request: types.CallToolRequest) -> types.ServerResult:
@@ -368,62 +475,34 @@ async def handle_create_gradient_tweet(
             "avatar": "https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png"
         }
 
-    # Structured content for the widget
+    # Structured content for the widget - include all gradients data
     structured_content = {
         "tweetContent": tweet_content,
         "gradientIndex": gradient_index,
         "gradientName": gradient['name'],
         "profile": twitter_data,
         "timestamp": datetime.utcnow().isoformat() + "Z",
-        "widgetUrl": f"{MCP_SERVER_URL}/widget/gradient-tweet"
+        # Include all gradients so widget doesn't need to fetch them
+        "gradients": GRADIENTS,
+        # Include server URL for API calls from widget (removes /mcp suffix)
+        "serverUrl": os.getenv("MCP_SERVER_URL", "").replace("/mcp", ""),
     }
 
     # Text response
     text_response = f"Created gradient tweet with {gradient['name']} gradient!"
 
-    # Read widget HTML content
-    widget_html = ""
-    try:
-        widget_path = os.path.join(os.path.dirname(__file__), "widgets", "gradient_tweet.html")
-        with open(widget_path, 'r', encoding='utf-8') as f:
-            widget_html = f.read()
-    except Exception as e:
-        mcp_logger.warning(f"Could not read widget HTML: {e}")
-        widget_html = "<p>Widget HTML not available</p>"
-
     mcp_logger.info(f"✅ Tool executed successfully [{request_id}]")
     mcp_logger.debug(f"Structured content: {json.dumps(structured_content, indent=2)}")
     mcp_logger.info("=" * 80)
 
-    # Return content that will display the HTML widget inline
-    # This approach should work for MCP inline HTML rendering
-    content_items = [
-        types.TextContent(
-            type="text",
-            text=text_response
-        )
-    ]
-    
-    # Try to include the HTML widget for inline display
-    # The MCP system should render HTML content inline when properly formatted
-    if widget_html and widget_html != "<p>Widget HTML not available</p>":
-        try:
-            # Attempt to add HTML content that the MCP client can render inline
-            # Based on MCP specifications, this should work for widget rendering
-            content_items.append(
-                types.TextContent(
-                    type="text",
-                    text=widget_html
-                )
-            )
-        except Exception as e:
-            mcp_logger.warning(f"Failed to add HTML content: {e}")
+    # Create embedded widget resource and add to metadata
+    widget_resource = _embedded_widget_resource()
+    meta: Dict[str, Any] = {
+        "openai.com/widget": widget_resource.model_dump(mode="json"),
+        **_widget_metadata(),
+    }
 
-    # For inline HTML widget display, we need to return the content in a specific way
-    # The MCP system should render HTML widgets inline when properly formatted
-    
-    # Create the response with HTML content for inline rendering
-    # The key is to include the HTML in a way that triggers inline widget rendering
+    # Return content following the pizzaz pattern
     return types.ServerResult(
         types.CallToolResult(
             content=[
@@ -431,24 +510,9 @@ async def handle_create_gradient_tweet(
                     type="text",
                     text=text_response
                 )
-            ] + ([
-                types.TextContent(
-                    type="text",
-                    text=widget_html
-                )
-            ] if widget_html and widget_html != "<p>Widget HTML not available</p>" else []),
-            structuredContent={
-                **structured_content,
-                # Include widget HTML in structured content for MCP widget handling
-                "widget_html": widget_html if widget_html and widget_html != "<p>Widget HTML not available</p>" else None
-            },
-            _meta={
-                "openai/widgetAccessible": True,
-                "openai/resultCanProduceWidget": True,
-                # Add metadata to indicate this should render as an inline widget
-                "widget_type": "html",
-                "inline_render": True
-            }
+            ],
+            structuredContent=structured_content,
+            _meta=meta
         )
     )
 
@@ -458,8 +522,9 @@ async def handle_create_gradient_tweet(
 # FastMCP exposes /.well-known/oauth-protected-resource automatically.
 
 
-# Register tool handler (following official example pattern)
+# Register request handlers (following official example pattern)
 mcp_server._mcp_server.request_handlers[types.CallToolRequest] = _call_tool
+mcp_server._mcp_server.request_handlers[types.ReadResourceRequest] = _handle_read_resource
 
 # Create Starlette app from FastMCP
 from starlette.routing import Route, Mount
@@ -577,21 +642,57 @@ async def get_all_gradients_api(request):
 # API endpoint to handle image uploads for sharing
 @app.route("/api/upload-image", methods=["POST"])
 async def upload_image(request):
-    """Handle image uploads for sharing functionality."""
+    """Handle image uploads to Cloudinary for sharing functionality."""
     from starlette.responses import JSONResponse
-    
+    import cloudinary
+    import cloudinary.uploader
+    import os
+
     try:
-        # For now, return a mock URL since we don't have actual image hosting
-        # In a real implementation, you'd upload to a service like Cloudinary, AWS S3, etc.
+        # Configure Cloudinary from environment variable
+        # Format: CLOUDINARY_URL=cloudinary://api_key:api_secret@cloud_name
+        cloudinary_url = os.getenv("CLOUDINARY_URL")
+        if not cloudinary_url:
+            mcp_logger.error("❌ CLOUDINARY_URL environment variable not set")
+            return JSONResponse(
+                {"success": False, "message": "Cloudinary not configured"},
+                status_code=500
+            )
+
+        # Parse request body
+        body = await request.json()
+        image_data = body.get("image")
+
+        if not image_data:
+            return JSONResponse(
+                {"success": False, "message": "No image data provided"},
+                status_code=400
+            )
+
+        # Upload to Cloudinary (supports base64 data URI)
+        mcp_logger.info("📤 Uploading image to Cloudinary...")
+        upload_result = cloudinary.uploader.upload(
+            image_data,
+            folder="gradient-tweets",  # Organize uploads in a folder
+            resource_type="image"
+        )
+
+        # Extract the secure URL from response
+        image_url = upload_result.get("secure_url")
+        public_id = upload_result.get("public_id")
+
+        mcp_logger.info(f"✅ Image uploaded successfully: {public_id}")
+
         return JSONResponse({
             "success": True,
-            "url": "https://example.com/uploaded-image.png",
-            "message": "Image upload not implemented yet"
+            "url": image_url,
+            "public_id": public_id
         })
+
     except Exception as e:
         mcp_logger.error(f"❌ Failed to upload image: {str(e)}")
         return JSONResponse(
-            {"success": False, "message": f"Error: {str(e)}"},
+            {"success": False, "message": f"Upload error: {str(e)}"},
             status_code=500
         )
 
