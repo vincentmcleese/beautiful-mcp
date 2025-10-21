@@ -1,0 +1,14 @@
+# Nixpacks configuration for Railway
+# This tells Railway to deploy the beautiful_gradient_mcp subdirectory
+
+[phases.setup]
+nixPkgs = ["python310", "nodejs_20"]
+
+[phases.build]
+cmds = [
+    "cd beautiful_gradient_mcp/frontend && npm install && npm run build",
+    "cd beautiful_gradient_mcp && pip install -r requirements.txt"
+]
+
+[start]
+cmd = "cd beautiful_gradient_mcp && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"
