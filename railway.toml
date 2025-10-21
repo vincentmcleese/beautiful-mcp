@@ -1,0 +1,10 @@
+[build]
+builder = "RAILPACK"
+
+[deploy]
+# preDeployCommand runs during build phase when Node.js is available
+preDeployCommand = ["bash build.sh"]
+# startCommand runs to start the application
+startCommand = "cd beautiful_gradient_mcp && uvicorn main:app --host 0.0.0.0 --port $PORT"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
