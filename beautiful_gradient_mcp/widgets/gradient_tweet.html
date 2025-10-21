@@ -147,12 +147,12 @@
       background: #f9fafb;
     }
     .controls .btn.primary {
-      background: #1d9bf0;
+      background: #000;
       color: #fff;
-      border-color: #1d9bf0;
+      border-color: #000;
     }
     .controls .btn.primary:hover {
-      background: #1a8cd8;
+      background: #333;
     }
     .sliders {
       display: flex;
@@ -231,13 +231,13 @@
           <label>Angle <input id="angle" type="range" min="0" max="360" value="135"></label>
           <label>Mix <input id="mix" type="range" min="0" max="100" value="100"></label>
         </div>
-        <button id="random" class="btn">Random</button>
-        <button id="download" class="btn">Done</button>
+        <button id="download" class="btn">⬇️ Download</button>
         <button id="share" class="btn primary">Share to X</button>
       </div>
       <div class="color-bar">
         <label>Color 1 <input id="color1" type="color" value="#FF6B6B"></label>
         <label>Color 2 <input id="color2" type="color" value="#FFE66D"></label>
+        <button id="random" class="btn">Random</button>
       </div>
       <div id="gradThumbs" class="grad-thumbs"></div>
     </div>
@@ -339,12 +339,55 @@
         const i = Math.floor(Math.random()*ALL_GRADIENTS.length);
         const g = ALL_GRADIENTS[i];
         angleEl.value = g.angle;
-        
+
         // Randomize mix value between 50% and 100%
         const randomMix = Math.floor(Math.random() * 51) + 50; // 50-100 range
         mixEl.value = randomMix;
-        
+
         setBg(g.angle, g.colors, randomMix/100);
+      }
+    });
+    shareBtn.addEventListener('click', async ()=>{
+      const bgNode = document.getElementById('bg');
+
+      try{
+        // Capture just the gradient background with the tweet card
+        const canvas = await html2canvas(bgNode, {
+          backgroundColor: null,
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          logging: false
+        });
+        const dataUrl = canvas.toDataURL('image/png');
+
+        // Upload to Cloudinary using absolute server URL
+        const uploadUrl = SERVER_URL + '/api/upload-image';
+        console.log('📤 Uploading to:', uploadUrl);
+
+        const res = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: dataUrl })
+        });
+        const out = await res.json();
+        if (out && out.url){
+          // Get the tweet content to include in the share
+          const tweetContent = contentEl.textContent || '';
+
+          // Create share URL with Twitter Card meta tags (for image preview)
+          const shareUrl = SERVER_URL + '/share/' + out.public_id;
+          const shareText = tweetContent ? `${tweetContent} ${shareUrl}` : shareUrl;
+          const encodedText = encodeURIComponent(shareText);
+
+          console.log('🐦 Opening Twitter with share URL:', shareUrl);
+
+          // Twitter will automatically fetch and display the image from the share page
+          const u = `https://twitter.com/intent/tweet?text=${encodedText}`;
+          window.open(u,'_blank','noopener,noreferrer');
+        }
+      }catch(e){
+        console.error('Share failed', e);
       }
     });
     dlBtn.addEventListener('click', async ()=>{
@@ -449,11 +492,13 @@
               const result = await res.json();
 
               if (result && result.url) {
-                // Open Twitter intent with image URL
-                const shareText = tweetContent ? tweetContent + ' ' + result.url : result.url;
+                // Create share URL with Twitter Card meta tags (for image preview)
+                const shareUrl = SERVER_URL + '/share/' + result.public_id;
+                const shareText = tweetContent ? tweetContent + ' ' + shareUrl : shareUrl;
                 const encodedText = encodeURIComponent(shareText);
                 const twitterUrl = 'https://twitter.com/intent/tweet?text=' + encodedText;
 
+                console.log('🐦 Opening Twitter with share URL:', shareUrl);
                 window.open(twitterUrl, '_blank', 'noopener,noreferrer');
 
                 tweetBtn.textContent = 'Tweet This';
@@ -477,48 +522,6 @@
         console.error('Image generation failed', e);
       }
     });
-    shareBtn.addEventListener('click', async ()=>{
-      const bgNode = document.getElementById('bg');
-
-      try{
-        // Capture just the gradient background with the tweet card (controls are already outside)
-        const canvas = await html2canvas(bgNode, {
-          backgroundColor: null,
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          logging: false
-        });
-        const dataUrl = canvas.toDataURL('image/png');
-
-        // Upload to Cloudinary using absolute server URL
-        const uploadUrl = SERVER_URL + '/api/upload-image';
-        console.log('📤 Uploading to:', uploadUrl);
-
-        const res = await fetch(uploadUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: dataUrl })
-        });
-        const out = await res.json();
-        if (out && out.url){
-          // Get the tweet content to include in the share
-          const tweetContent = contentEl.textContent || '';
-
-          // Create a sharing URL that will make Twitter display the image properly
-          // Twitter will fetch the image and show it as an attached photo
-          const shareText = tweetContent ? `${tweetContent} ${out.url}` : out.url;
-          const encodedText = encodeURIComponent(shareText);
-
-          // Twitter will automatically fetch and display the image from the URL
-          const u = `https://twitter.com/intent/tweet?text=${encodedText}`;
-          window.open(u,'_blank','noopener,noreferrer');
-        }
-      }catch(e){
-        console.error('Share failed', e);
-      }
-    });
-
     // Apps SDK hydration - listen for 'openai:set_globals' event (official pattern)
     function initFromOpenAI() {
       // Try immediately first (window.openai might already be available)

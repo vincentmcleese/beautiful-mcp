@@ -697,6 +697,74 @@ async def upload_image(request):
         )
 
 
+# Share page with Twitter Card meta tags for image previews
+@app.route("/share/{public_id:path}")
+async def share_image(request):
+    """Serve a shareable page with Twitter Card meta tags for the gradient tweet image."""
+    from starlette.responses import HTMLResponse
+
+    try:
+        public_id = request.path_params['public_id']
+        cloudinary_cloud = os.getenv("CLOUDINARY_URL", "").split("@")[-1]
+
+        # Construct full Cloudinary URL
+        image_url = f"https://res.cloudinary.com/{cloudinary_cloud}/image/upload/{public_id}.png"
+
+        # HTML with Twitter Card and Open Graph meta tags
+        html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Twitter Card meta tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Gradient Tweet">
+    <meta name="twitter:description" content="Check out this beautiful gradient tweet!">
+    <meta name="twitter:image" content="{image_url}">
+
+    <!-- Open Graph meta tags (Facebook, LinkedIn, etc.) -->
+    <meta property="og:title" content="Gradient Tweet">
+    <meta property="og:description" content="Check out this beautiful gradient tweet!">
+    <meta property="og:image" content="{image_url}">
+    <meta property="og:image:width" content="1800">
+    <meta property="og:image:height" content="1000">
+    <meta property="og:type" content="website">
+
+    <title>Gradient Tweet</title>
+
+    <style>
+        body {{
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }}
+        img {{
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }}
+    </style>
+</head>
+<body>
+    <img src="{image_url}" alt="Gradient Tweet">
+</body>
+</html>"""
+
+        mcp_logger.info(f"📤 Serving share page for: {public_id}")
+        return HTMLResponse(html_content)
+
+    except Exception as e:
+        mcp_logger.error(f"❌ Failed to serve share page: {str(e)}")
+        return HTMLResponse("<p>Image not found</p>", status_code=404)
+
+
 # Serve widget HTML
 @app.route("/widget/gradient-tweet")
 async def serve_gradient_widget(request):
