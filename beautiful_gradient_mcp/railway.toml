@@ -1,0 +1,14 @@
+[build]
+builder = "nixpacks"
+buildCommand = "cd frontend && npm install && npm run build && cd .. && pip install -r requirements.txt"
+
+# Frontend environment variables are passed during build
+# Railway will inject VITE_* variables at build time
+
+[deploy]
+startCommand = "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[env]
+# Environment variables should be set in Railway dashboard

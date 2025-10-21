@@ -784,6 +784,13 @@ async def login_page(request):
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
 
+# Serve index.html at root
+@app.route("/")
+async def root_page(request):
+    """Serve the React app at root."""
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
