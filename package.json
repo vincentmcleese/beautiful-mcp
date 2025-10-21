@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "Beautiful Gradient MCP Server",
   "scripts": {
-    "build": "cd beautiful_gradient_mcp/frontend && npm install && npm run build",
-    "postinstall": "npm run build"
+    "build": "cd beautiful_gradient_mcp/frontend && npm install && npm run build"
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "dependencies": {},
+  "devDependencies": {}
 }
