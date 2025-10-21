@@ -1,2 +1,11 @@
-# Include requirements from beautiful_gradient_mcp subdirectory
--r beautiful_gradient_mcp/requirements.txt
+# Python dependencies for Beautiful Gradient MCP Server
+mcp[fastapi]>=0.1.0
+fastapi>=0.115.0
+uvicorn>=0.30.0
+httpx
+python-dotenv
+sqlalchemy
+psycopg2-binary
+PyJWT>=2.8.0
+cryptography>=3.4.8
+cloudinary>=1.41.0
