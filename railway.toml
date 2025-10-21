@@ -1,9 +1,10 @@
 [build]
 builder = "RAILPACK"
+# Build command must be set in Railway Dashboard Settings -> Build
+# Set to: bash build.sh
+# (buildCommand field in railway.toml only works with NIXPACKS builder)
 
 [deploy]
-# preDeployCommand runs during build phase when Node.js is available
-preDeployCommand = ["bash build.sh"]
 # startCommand runs to start the application
 startCommand = "cd beautiful_gradient_mcp && uvicorn main:app --host 0.0.0.0 --port $PORT"
 restartPolicyType = "ON_FAILURE"
