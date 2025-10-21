@@ -1,0 +1,2 @@
+# Include requirements from beautiful_gradient_mcp subdirectory
+-r beautiful_gradient_mcp/requirements.txt
