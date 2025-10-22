@@ -375,19 +375,23 @@ def extract_twitter_profile(stytch_data: Dict[str, Any]) -> Optional[Dict[str, s
 
             # Get display name from user.name
             name = user.get('name', {})
-            display_name = name.get('first_name', '') or 'Unknown'
+            first_name = name.get('first_name', '')
+            last_name = name.get('last_name', '')
+
+            # Combine first and last name for display
+            display_name = f"{first_name} {last_name}".strip() or 'Unknown'
 
             # Extract Twitter handle from provider_subject (Twitter user ID)
             # Note: We only have the Twitter user ID, not the @handle
             # We'll use the display name as the handle for now
             twitter_id = twitter_provider.get('provider_subject')
 
-            oauth_logger.warning(f"⚠️ Using first_name '{display_name}' as Twitter handle (real handle not in session response)")
+            oauth_logger.warning(f"⚠️ Using display name '{display_name}' as Twitter handle (real handle not in session response)")
 
             profile = {
                 'stytch_user_id': stytch_user_id,
                 'twitter_id': twitter_id,
-                'twitter_handle': display_name,  # Using display name since we don't have @handle
+                'twitter_handle': display_name,  # Using full name since we don't have @handle
                 'display_name': display_name,
                 'avatar_url': twitter_provider.get('profile_picture_url', '').replace('_normal', '_400x400'),
             }
