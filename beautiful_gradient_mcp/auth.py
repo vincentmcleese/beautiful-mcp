@@ -270,14 +270,25 @@ async def verify_stytch_session_token(session_token: str) -> Dict[str, Any]:
             user_id = user.get('user_id', 'UNKNOWN')
             oauth_logger.info(f"✅ Session valid for user: {user_id}")
 
+            # Debug session response structure
+            oauth_logger.debug(f"📊 Session response keys: {list(data.keys())}")
+            oauth_logger.debug(f"📊 User keys: {list(user.keys())}")
+
             # Extract provider values (Twitter profile)
             provider_values = user.get('provider_values', {})
             oauth_logger.debug(f"Provider values keys: {list(provider_values.keys())}")
 
+            # Check if provider_values exists at root level too
+            if 'provider_values' in data:
+                root_provider_values = data['provider_values']
+                oauth_logger.info(f"✅ provider_values at root level with keys: {list(root_provider_values.keys())}")
+            else:
+                oauth_logger.warning("⚠️ No provider_values at root level")
+
             # Twitter data structure
             if 'twitter' in provider_values:
                 twitter_profile = provider_values['twitter']
-                oauth_logger.info(f"🐦 Twitter data found")
+                oauth_logger.info(f"🐦 Twitter data found in user.provider_values")
                 oauth_logger.info(f"🐦 Twitter handle: @{twitter_profile.get('screen_name', 'UNKNOWN')}")
                 oauth_logger.info(f"🐦 Twitter name: {twitter_profile.get('name', 'UNKNOWN')}")
                 oauth_logger.info(f"🐦 Twitter ID: {twitter_profile.get('id', 'UNKNOWN')}")
@@ -285,7 +296,16 @@ async def verify_stytch_session_token(session_token: str) -> Dict[str, Any]:
                 if avatar_url:
                     oauth_logger.info(f"🐦 Twitter avatar: {avatar_url[:60]}...")
             else:
-                oauth_logger.warning(f"⚠️ No Twitter data in provider_values. Available: {list(provider_values.keys())}")
+                oauth_logger.warning(f"⚠️ No Twitter data in user.provider_values. Available: {list(provider_values.keys())}")
+
+            # Check providers array
+            providers = user.get('providers', [])
+            oauth_logger.debug(f"📊 Found {len(providers)} provider(s) in user.providers array")
+            for provider in providers:
+                provider_type = provider.get('provider_type')
+                oauth_logger.debug(f"Provider: {provider_type} - available keys: {list(provider.keys())}")
+                if provider_type == 'Twitter':
+                    oauth_logger.warning(f"⚠️ Full Twitter provider data: {provider}")
 
             return data
 
@@ -350,6 +370,8 @@ def extract_twitter_profile(stytch_data: Dict[str, Any]) -> Optional[Dict[str, s
 
         if twitter_provider:
             oauth_logger.info("🐦 Found Twitter data in user.providers (session authenticate response)")
+            oauth_logger.debug(f"📊 Twitter provider keys available: {list(twitter_provider.keys())}")
+            oauth_logger.warning(f"⚠️ FULL Twitter provider object: {json.dumps(twitter_provider, indent=2)}")
 
             # Get display name from user.name
             name = user.get('name', {})
@@ -359,6 +381,8 @@ def extract_twitter_profile(stytch_data: Dict[str, Any]) -> Optional[Dict[str, s
             # Note: We only have the Twitter user ID, not the @handle
             # We'll use the display name as the handle for now
             twitter_id = twitter_provider.get('provider_subject')
+
+            oauth_logger.warning(f"⚠️ Using first_name '{display_name}' as Twitter handle (real handle not in session response)")
 
             profile = {
                 'stytch_user_id': stytch_user_id,
