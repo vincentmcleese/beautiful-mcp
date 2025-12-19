@@ -789,6 +789,19 @@ async def login_page(request):
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
 
+# OpenAI Domain Verification
+@app.route("/.well-known/openai-apps-challenge")
+async def openai_verification(request):
+    """Serve the OpenAI domain verification token."""
+    challenge_path = os.path.join(os.path.dirname(__file__), ".well-known", "openai-apps-challenge")
+    if os.path.exists(challenge_path):
+        return FileResponse(challenge_path)
+    else:
+        # Fallback to hardcoded token if file is missing
+        from starlette.responses import PlainTextResponse
+        return PlainTextResponse("ISug_Gib83ZaIedv_pIIsNugr5M5nN9Jx_rFI63cg0c")
+
+
 # Serve index.html at root
 @app.route("/")
 async def root_page(request):
